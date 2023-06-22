@@ -1,12 +1,11 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from imblearn.over_sampling import RandomOverSampler
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 import nltk
 import re
-import swifter  # Import swifter library for parallel processing
+import swifter
 
 nltk.download('punkt')
 nltk.download('stopwords')
@@ -25,11 +24,10 @@ df = pd.read_csv("C:\\Users\\lunac\\OneDrive\\Documents\\Schoolprojecten\\IPASS\
 
 # Define a function to clean the text
 def clean(text):
-    # Removes all special characters and numericals leaving the alphabets
     text = re.sub('[^A-Za-z]+', ' ', text)
     return text
 
-# Cleaning the text in the review column
+# Cleaning the text in the comments column
 df['Cleaned comments'] = df['comment_text'].apply(clean)
 
 # POS tagger dictionary
@@ -55,51 +53,27 @@ def lemmatize(pos_data):
 # Apply lemmatization in parallel
 df['Lemma'] = df['POS tagged'].swifter.apply(lemmatize)
 
-print(df.head())
+# Split the dataset into training and evaluation subsets
+X = df['Lemma']
+y = df[['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate', 'misogyny']]
+X_train, X_eval, y_train, y_eval = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# class YourModel:
-#     def __init__(self):
-#         self.base_model = Pipeline([
-#             ('vect', CountVectorizer()),
-#             ('tfidf', TfidfTransformer()),
-#             ('clf', LogisticRegression())
-#         ])
-    
-#     def _get_base_model_data(self, X: pd.DataFrame, y: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
-#         train_x = X.copy()
-#         train_y = y[['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']]
+# Create a pipeline for the classification task
+pipeline = Pipeline([
+    ('vectorizer', CountVectorizer()),
+    ('tfidf', TfidfTransformer()),
+    ('classifier', LogisticRegression())
+])
 
-#         # Filter out toxic comments
-#         toxic_mask = (train_y == 0).all(axis=1)
-#         train_x = train_x.loc[toxic_mask]
-#         train_y = train_y.loc[toxic_mask]
+# Fit a separate model for each label
+label_models = {}
+for label in y_train.columns:
+    print('Training model for label:', label)
+    model = pipeline.fit(X_train, y_train[label])
+    label_models[label] = model
 
-#         train_x = train_x.reset_index(drop=True)
-#         train_y = train_y.reset_index(drop=True)
-        
-#         return train_x, train_y['toxic']  # Returning the 'toxic' column for compatibility
-
-#     def fit(self, X: pd.DataFrame, y: pd.Series, **kwargs):
-#         train_x, train_y = self._get_base_model_data(X, y)
-#         self.base_model.fit(train_x, train_y, **kwargs)
-
-# df = pd.read_csv("C:\\Users\\lunac\\OneDrive\\Documents\\Schoolprojecten\\IPASS\\train.csv", encoding='latin1')
-
-# X = df['comment_text']
-# y = df[['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']]
-
-# # Split the data into training and testing sets
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# # Perform oversampling on the training set
-# oversampler = RandomOverSampler(random_state=42)
-# X_train_resampled, y_train_resampled = oversampler.fit_resample(X_train.to_frame(), y_train['toxic'])
-
-# model = YourModel()
-
-# # Fit the model
-# model.fit(X_train_resampled.squeeze(), y_train_resampled)
-
-# # Evaluate the model
-# accuracy = model.base_model.score(X_test, y_test['toxic'])
-# print("Label-wise accuracy:", accuracy)
+# Evaluate the models on the evaluation subset
+accuracy = {}
+for label, model in label_models.items():
+    accuracy[label] = model.score(X_eval, y_eval[label])
+    print("Accuracy for label", label, ":", accuracy[label])
