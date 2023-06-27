@@ -10,7 +10,7 @@ from nltk.stem import WordNetLemmatizer
 
 # Load the trained models from disk
 label_models = {}
-for label in ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate', 'misogyny']:
+for label in ['toxic']:
     model = joblib.load(f"{label}_model.pkl")  # Specify the correct path of the trained models
     label_models[label] = model
 
@@ -81,24 +81,25 @@ while True:
         predictions[label] = prediction[0]
 
     # Determine if the message is toxic
-    is_toxic = any(predictions.values())
+    is_toxic = max(predictions.values()) == 1
 
     # Perform censorship or any other action based on the predicted labels
-# Apply censorship or any other action based on the predicted labels
     censored_message = user_input
+
+
     for label, prediction in predictions.items():
         print(f"Label: {label}, Prediction: {prediction}")
         if prediction == 1:
-        # Perform censorship or any other action
-            censored_message = censored_message.replace(label, "***CENSORED***")
+            # Perform censorship or any other action
+            censored_word = label.replace('_', ' ')
+            censored_word_regex = r'\b' + re.escape(censored_word) + r'\b'
+            censored_message = re.sub(censored_word_regex, '*' * len(censored_word), censored_message, flags=re.IGNORECASE)
 
-# Print the censored message
-        print("Censored message:", censored_message)
-
+    # Print the censored message
+    print("Censored message:", censored_message)
 
     # Insert the user's message into the database
-    database.insert_message(conn, cursor, user_id, user_input, censored_message)
-
+    database.insert_message(conn, cursor, user_id, user_input, censored_message, is_toxic)
 
 # Close the database connection
 database.close_connection(conn, cursor)

@@ -22,7 +22,7 @@ wordnet_lemmatizer = WordNetLemmatizer()
 # Load the trained pipeline and label models
 pipeline = joblib.load('pipeline.pkl')
 label_models = {}
-for label in ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate', 'misogyny']:
+for label in ['toxic']:
     label_models[label] = joblib.load(f'{label}_model.pkl')
 
 # Load the test dataset
@@ -76,14 +76,8 @@ for label in label_models:
 predicted_labels = {}
 for i, comment_id in enumerate(df_test['id']):
     predicted_labels[comment_id] = {
-        'toxic': int(y_pred['toxic'][i]),
-        'severe_toxic': int(y_pred['severe_toxic'][i]),
-        'obscene': int(y_pred['obscene'][i]),
-        'threat': int(y_pred['threat'][i]),
-        'insult': int(y_pred['insult'][i]),
-        'identity_hate': int(y_pred['identity_hate'][i]),
-        'misogyny': int(y_pred['misogyny'][i])
+        'toxic': int(y_pred['toxic'][i])
     }
 
 # Print the predicted labels
-print("Predicted Labels:", predicted_labels)
+print("Predicted Labels:", predicted_labels) 

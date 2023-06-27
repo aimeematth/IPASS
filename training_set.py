@@ -80,9 +80,6 @@ def check_profanity(text):
                 return 'True'
     return 'False'
 
-
-
-
 # Apply profane word replacement
 df['Processed comments'] = df['Lemma'].apply(check_profanity)
 
@@ -93,25 +90,17 @@ def clean_special_chars(text):
     else:
         return re.sub('[^A-Za-z0-9]+', ' ', text)
 
-
-
-
 # Cleaning special characters in the comments column
 df['Processed comments'] = df['Processed comments'].apply(clean_special_chars)
 
 # Split the dataset into training and evaluation subsets
 X = df['Processed comments'].str.lower()
-y = df[['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate', 'misogyny']]
+y = df[['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']]
 X_train, X_eval, y_train, y_eval = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Create a pipeline for the classification task
-pipeline = Pipeline([
-    ('vectorizer', CountVectorizer()),
-    ('tfidf', TfidfTransformer()),
-    ('classifier', LogisticRegression())
-])
+# Create an ensemble of models
+ensemble_models = []
 
-label_models = {}
 for label in y_train.columns:
     print('Training model for label:', label)
     model_pipeline = Pipeline([
@@ -120,17 +109,25 @@ for label in y_train.columns:
         ('classifier', LogisticRegression())
     ])
     model = model_pipeline.fit(X_train, y_train[label])
-    label_models[label] = model
+    ensemble_models.append(model)
 
 # Evaluate the models on the evaluation subset
 accuracy = {}
-for label, model in label_models.items():
+for i, model in enumerate(ensemble_models):
+    label = y_train.columns[i]
     accuracy[label] = model.score(X_eval, y_eval[label])
     print("Accuracy for label", label, ":", accuracy[label])
 
-# Save the pipeline to a file
-joblib.dump(pipeline, 'pipeline.pkl')
-
-# Save the label models to individual files
-for label, model in label_models.items():
+# Save the ensemble models to individual files
+for i, model in enumerate(ensemble_models):
+    label = y_train.columns[i]
     joblib.dump(model, f'{label}_model.pkl')
+
+# Save the pipeline object
+pipeline = Pipeline([
+    ('vectorizer', CountVectorizer()),
+    ('tfidf', TfidfTransformer()),
+    ('classifier', ensemble_models)
+])
+
+joblib.dump(pipeline, 'pipeline.pkl')

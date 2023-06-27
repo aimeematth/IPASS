@@ -41,9 +41,9 @@ def preprocess_text(text):
 
     return lemmatized_text
 
-def insert_message(conn, cursor, user_id, message, censored_message):
-    insert_query = "INSERT INTO messages (user_id, message, processed, censored_message) VALUES (%s, %s, %s, %s)"
-    cursor.execute(insert_query, (user_id, message, True, censored_message))
+def insert_message(conn, cursor, user_id, message, censored_message, is_toxic):
+    insert_query = "INSERT INTO messages (user_id, message, processed, censored_message, is_toxic) VALUES (%s, %s, %s, %s, %s)"
+    cursor.execute(insert_query, (user_id, message, True, censored_message, bool(is_toxic)))
     conn.commit()
 
 
