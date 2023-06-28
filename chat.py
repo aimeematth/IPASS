@@ -1,5 +1,6 @@
 import joblib
 import database
+import training_set
 import psycopg2
 import re
 from nltk.tokenize import word_tokenize
@@ -14,11 +15,21 @@ for label in ['toxic']:
     model = joblib.load(f"{label}_model.pkl")  # Specify the correct path of the trained models
     label_models[label] = model
 
+# Connect to the PostgreSQL database
 conn = psycopg2.connect(host='localhost', dbname='chat_comments', user='postgres', password='134340')
 cursor = conn.cursor()
 
 # Preprocess text function
 def preprocess_text(text):
+    """
+    Preprocesses the text by cleaning, tokenizing, removing stop words, and lemmatizing.
+
+    Args:
+        text (str): The input text to be preprocessed.
+
+    Returns:
+        str: The preprocessed text.
+    """
     def clean(text):
         text = re.sub('[^A-Za-z]+', ' ', text)
         return text
@@ -48,9 +59,9 @@ def preprocess_text(text):
     return lemmatized_text
 
 # Login process
-username = input("Enter your username: ")
-email = input("Enter your email: ")
-user_id = input("Enter your user ID: ")
+username = input("Enter your username: ") #example : StarGazer92
+email = input("Enter your email: ") #example : stargazer92@example.com
+user_id = input("Enter your user ID: ") #example : 4352
 
 # Check if the user exists in the database
 select_user_query = "SELECT id FROM users WHERE id = %s AND username = %s AND email = %s"
@@ -86,18 +97,25 @@ while True:
     # Perform censorship or any other action based on the predicted labels
     censored_message = user_input
 
+    #   Tokenize the message into individual words
+    words = word_tokenize(censored_message)
 
     for label, prediction in predictions.items():
         print(f"Label: {label}, Prediction: {prediction}")
         if prediction == 1:
             # Perform censorship or any other action
             censored_word = label.replace('_', ' ')
-            censored_word_regex = r'\b' + re.escape(censored_word) + r'\b'
-            censored_message = re.sub(censored_word_regex, '*' * len(censored_word), censored_message, flags=re.IGNORECASE)
+            for i in range(len(words)):
+                # Check if the word matches the toxic label
+                if words[i].lower() == censored_word.lower():
+                    # Censor the word by replacing it with asterisks
+                    words[i] = '*' * len(words[i])
+
+    # Reconstruct the censored message
+    censored_message = ' '.join(words)
 
     # Print the censored message
     print("Censored message:", censored_message)
-
     # Insert the user's message into the database
     database.insert_message(conn, cursor, user_id, user_input, censored_message, is_toxic)
 
